@@ -14,7 +14,7 @@ class Camera:
 
 
 def processFrame(camera):
-    cap = cv2.VideoCapture(camera.videoStreamTest)
+    cap = cv2.VideoCapture(camera.videoStreamUrl)
     if not cap.isOpened():
         print("No se pudo abrir el stream de video.")
         return
@@ -46,7 +46,7 @@ def processFrame(camera):
 # Load configuration from JSON
 with open("config.json", "r") as conf:
     config = json.load(conf)
-    cam = Camera(config["area"], config["subarea"], config["videoStreamUrl"], config["s3Bucket"], config["isFisheye"],
+    cam = Camera(config["area"], config["subarea"], config["videoStreamTest"], config["s3Bucket"], config["isFisheye"],
                  config["frameCaptureThreshold"])
 
     try:
