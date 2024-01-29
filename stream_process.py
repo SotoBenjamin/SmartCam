@@ -48,18 +48,20 @@ def processFrame(camera):
         faces = face_cascade.detectMultiScale(
             gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-        # Dibujar un rectángulo alrededor de los rostros
-        for (x, y, w, h) in faces:
-            cv2.rectangle(resized_cropped, (x, y), (x+w, y+h), (0, 255, 0), 2)
-
-        frame_count += 1
-        if frame_count % camera.frameCaptureThreshold == 0:
+        if len(faces) > 0 and frame_count % camera.frameCaptureThreshold == 0:
             now = datetime.now()
             objectName = f"frame_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
             if cv2.imwrite(objectName, resized_cropped):
                 print("Frame saved: " + objectName)
             else:
                 print("NO SE GUARDO NADA")
+
+        # Dibujar un rectángulo alrededor de los rostros
+        for (x, y, w, h) in faces:
+            cv2.rectangle(resized_cropped, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+        frame_count += 1
+
         cv2.imshow('Frame', resized_cropped)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
