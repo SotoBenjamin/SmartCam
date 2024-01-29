@@ -3,7 +3,6 @@ import cv2
 from datetime import datetime
 
 
-
 class Camera:
     def __init__(self, area, subarea, videoStreamUrl, s3Bucket, isFisheye, frameCaptureThreshold):
         self.area = area
@@ -15,7 +14,7 @@ class Camera:
 
 
 def processFrame(camera):
-    cap = cv2.VideoCapture(camera.videoStreamUrl)
+    cap = cv2.VideoCapture(camera.videoStreamTest)
     if not cap.isOpened():
         print("No se pudo abrir el stream de video.")
         return
