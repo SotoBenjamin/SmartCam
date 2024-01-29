@@ -49,8 +49,8 @@ def processFrame(camera):
 
         # Dibujar un rectángulo alrededor de los rostros
         for top, right, bottom, left in face_locations:
-            cv2.rectangle(resized_cropped, (left, top),
-                          (right, bottom), (0, 255, 0), 2)
+            cv2.rectangle(resized_cropped, (left-10, top-50),
+                          (right+10, bottom+10), (0, 255, 0), 2)
 
         frame_count += 1
         if frame_count % camera.frameCaptureThreshold == 0:
