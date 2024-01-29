@@ -1,6 +1,7 @@
 import cv2
 import json
 import face_recognition
+import os
 from datetime import datetime
 
 
@@ -54,7 +55,10 @@ def processFrame(camera):
         frame_count += 1
         if frame_count % camera.frameCaptureThreshold == 0:
             now = datetime.now()
-            objectName = f"frame_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
+            # Modificar esta línea
+            objectName = f"images/frame_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
+            if not os.path.exists('images'):
+                os.makedirs('images')
             if cv2.imwrite(objectName, resized_cropped):
                 print("Frame saved: " + objectName)
             else:
