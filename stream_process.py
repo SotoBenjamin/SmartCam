@@ -1,5 +1,6 @@
 import cv2
 import json
+import face_recognition
 from datetime import datetime
 
 
@@ -20,8 +21,6 @@ def processFrame(camera):
         return
     frame_count = 0
     scale = 500
-    # Asegúrate de que este es el camino correcto al archivo xml
-    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -45,23 +44,21 @@ def processFrame(camera):
         gray = cv2.cvtColor(resized_cropped, cv2.COLOR_BGR2GRAY)
 
         # Detectar rostros
-        faces = face_cascade.detectMultiScale(
-            gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        face_locations = face_recognition.face_locations(gray)
 
-        if len(faces) > 0 and frame_count % camera.frameCaptureThreshold == 0:
+        # Dibujar un rectángulo alrededor de los rostros
+        for top, right, bottom, left in face_locations:
+            cv2.rectangle(resized_cropped, (left, top),
+                          (right, bottom), (0, 255, 0), 2)
+
+        frame_count += 1
+        if frame_count % camera.frameCaptureThreshold == 0:
             now = datetime.now()
             objectName = f"frame_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
             if cv2.imwrite(objectName, resized_cropped):
                 print("Frame saved: " + objectName)
             else:
                 print("NO SE GUARDO NADA")
-
-        # Dibujar un rectángulo alrededor de los rostros
-        for (x, y, w, h) in faces:
-            cv2.rectangle(resized_cropped, (x, y), (x+w, y+h), (0, 255, 0), 2)
-
-        frame_count += 1
-
         cv2.imshow('Frame', resized_cropped)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
