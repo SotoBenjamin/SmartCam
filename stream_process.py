@@ -15,7 +15,7 @@ class Camera:
         self.frameCaptureThreshold = frameCaptureThreshold
 
 
-def processFrame(camera):
+def processFrame(camera: Camera):
     cap = cv2.VideoCapture(camera.videoStreamUrl)
     if not cap.isOpened():
         print("No se pudo abrir el stream de video.")
@@ -54,7 +54,7 @@ def processFrame(camera):
             face_image = resized_cropped[top-50:bottom+10, left-10:right+10]
 
             frame_count += 1
-            if frame_count % camera.frameCaptureThreshold == 0:
+            if frame_count % camera.frameCaptureThreshold == 0 and len(face_locations) > 0:
                 now = datetime.now()
                 objectName = f"images/face_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
                 if not os.path.exists('images'):
