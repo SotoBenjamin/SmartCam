@@ -47,25 +47,28 @@ def processFrame(camera):
         # Detectar rostros
         face_locations = face_recognition.face_locations(gray)
 
-        # Dibujar un rectángulo alrededor de los rostros
+        # Dibujar un rectángulo alrededor de los rostros y guardar solo el rostro
         for top, right, bottom, left in face_locations:
             cv2.rectangle(resized_cropped, (left-10, top-50),
                           (right+10, bottom+10), (0, 255, 0), 2)
+            face_image = resized_cropped[top-50:bottom+10, left-10:right+10]
 
-        frame_count += 1
-        if frame_count % camera.frameCaptureThreshold == 0:
-            now = datetime.now()
-            # Modificar esta línea
-            objectName = f"images/frame_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
-            if not os.path.exists('images'):
-                os.makedirs('images')
-            if cv2.imwrite(objectName, resized_cropped):
-                print("Frame saved: " + objectName)
-            else:
-                print("NO SE GUARDO NADA")
+            frame_count += 1
+            if frame_count % camera.frameCaptureThreshold == 0:
+                now = datetime.now()
+                objectName = f"images/face_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
+                if not os.path.exists('images'):
+                    os.makedirs('images')
+                if cv2.imwrite(objectName, face_image):
+                    print("Face saved: " + objectName)
+                else:
+                    print("NO SE GUARDO NADA")
         cv2.imshow('Frame', resized_cropped)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+        if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
             break
     cap.release()
     cv2.destroyAllWindows()
