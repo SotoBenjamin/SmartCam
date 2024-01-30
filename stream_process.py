@@ -53,7 +53,7 @@ def processFrame(camera):
                           (right+10, bottom+10), (0, 255, 0), 2)
 
         frame_count += 1
-        if frame_count % camera.frameCaptureThreshold == 0:
+        if frame_count % camera.frameCaptureThreshold == 0 and len(face_locations) > 0:
             now = datetime.now()
             # Modificar esta línea
             objectName = f"images/frame_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
