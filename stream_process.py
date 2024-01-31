@@ -3,83 +3,88 @@ import json
 import face_recognition
 import os
 from datetime import datetime
+import threading
+from queue import Queue
 
 
 class Camera:
-    def __init__(self, area, subarea, videoStreamUrl, s3Bucket, isFisheye, frameCaptureThreshold):
+    def __init__(self, area, subarea, videoStreamUrl, s3Bucket, isFisheye, frameCaptureThreshold, tenant_id):
         self.area = area
         self.subarea = subarea
         self.videoStreamUrl = videoStreamUrl
         self.s3Bucket = s3Bucket
         self.isFisheye = isFisheye
         self.frameCaptureThreshold = frameCaptureThreshold
+        self.tenant_id = tenant_id
+
+
+def captureVideo(camera, frame_queue):
+    cap = cv2.VideoCapture(camera.videoStreamUrl)
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if ret:
+            frame_queue.put(frame)
+        else:
+            break
+    cap.release()
 
 
 def processFrame(camera: Camera):
-    cap = cv2.VideoCapture(camera.videoStreamUrl)
-    if not cap.isOpened():
-        print("No se pudo abrir el stream de video.")
-        return
+    frame_queue = Queue(maxsize=10)
+    threading.Thread(target=captureVideo, args=(
+        camera, frame_queue), daemon=True).start()
+
     frame_count = 0
-    scale = 500
+    scale = 100  # Escala reducida para un procesamiento más rápido
+
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Error reading frame.")
-            break
+        if frame_queue.empty():
+            continue
+        frame = frame_queue.get()
 
-        # obtener el tamaño de la webcam
-        height, width, channels = frame.shape
-
-        # preparar el recorte
-        centerX, centerY = int(height/2), int(width/2)
-        radiusX, radiusY = int(scale*height/100), int(scale*width/100)
-
-        minX, maxX = centerX - radiusX, centerX + radiusX
-        minY, maxY = centerY - radiusY, centerY + radiusY
-
-        cropped = frame[minX:maxX, minY:maxY]
-        resized_cropped = cv2.resize(cropped, (width, height))
+        # Reducir la resolución del frame
+        height, width, _ = frame.shape
+        frame = cv2.resize(
+            frame, (int(width * scale / 100), int(height * scale / 100)))
 
         # Convertir la imagen a escala de grises
-        gray = cv2.cvtColor(resized_cropped, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # Detectar rostros
-        face_locations = face_recognition.face_locations(gray)
+        # Detectar rostros cada 5 frames para reducir la carga de procesamiento
+        if frame_count % 5 == 0:
+            face_locations = face_recognition.face_locations(gray)
 
         # Dibujar un rectángulo alrededor de los rostros y guardar solo el rostro
         for top, right, bottom, left in face_locations:
-            cv2.rectangle(resized_cropped, (left-10, top-50),
-                          (right+10, bottom+10), (0, 255, 0), 2)
-            face_image = resized_cropped[top-50:bottom+10, left-10:right+10]
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+            face_image = frame[top:bottom, left:right]
 
-            frame_count += 1
             if frame_count % camera.frameCaptureThreshold == 0 and len(face_locations) > 0:
                 now = datetime.now()
-                objectName = f"images/face_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
+                objectName = f"images/{camera.area}_{now.strftime('%Y%m%d_%H%M%S')}_{camera.tenant_id}.jpg"
                 if not os.path.exists('images'):
                     os.makedirs('images')
                 if cv2.imwrite(objectName, face_image):
                     print("Face saved: " + objectName)
-                else:
-                    print("NO SE GUARDO NADA")
-        cv2.imshow('Frame', resized_cropped)
+
+        cv2.imshow('Frame', frame)
+        frame_count += 1
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
         if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
             break
-    cap.release()
+
     cv2.destroyAllWindows()
 
 
-# Load configuration from JSON
+# Cargar configuración desde JSON
 with open("config.json", "r") as conf:
     config = json.load(conf)
 
 cam = Camera(config["area"], config["subarea"], config["videoStreamTest"],
-             config["s3Bucket"], config["isFisheye"], config["frameCaptureThreshold"])
+             config["s3Bucket"], config["isFisheye"], config["frameCaptureThreshold"], config["tenant_id"])
 
 try:
     processFrame(cam)
