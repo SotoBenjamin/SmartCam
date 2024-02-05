@@ -8,3 +8,5 @@ numpy==1.26.3
 opencv-python==4.9.0.80
 pillow==10.2.0
 pycodestyle==2.11.1
+
+requests~=2.31.0
