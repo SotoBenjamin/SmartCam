@@ -6,8 +6,9 @@ from datetime import datetime
 import threading
 from queue import Queue
 
+
 class Camera:
-    def __init__(self, area, subarea, videoStreamUrl, s3Bucket, isFisheye, frameCaptureThreshold , tenant_id):
+    def __init__(self, area, subarea, videoStreamUrl, s3Bucket, isFisheye, frameCaptureThreshold, tenant_id):
         self.area = area
         self.subarea = subarea
         self.videoStreamUrl = videoStreamUrl
@@ -15,6 +16,7 @@ class Camera:
         self.isFisheye = isFisheye
         self.frameCaptureThreshold = frameCaptureThreshold
         self.tenant_id = tenant_id
+
 
 def captureVideo(camera, frame_queue):
     cap = cv2.VideoCapture(camera.videoStreamUrl)
@@ -26,9 +28,11 @@ def captureVideo(camera, frame_queue):
             break
     cap.release()
 
+
 def processFrame(camera: Camera):
     frame_queue = Queue(maxsize=10)
-    threading.Thread(target=captureVideo, args=(camera, frame_queue), daemon=True).start()
+    threading.Thread(target=captureVideo, args=(
+        camera, frame_queue), daemon=True).start()
 
     frame_count = 0
     scale = 100  # Escala reducida para un procesamiento más rápido
@@ -40,7 +44,8 @@ def processFrame(camera: Camera):
 
         # Reducir la resolución del frame
         height, width, _ = frame.shape
-        frame = cv2.resize(frame, (int(width * scale / 100), int(height * scale / 100)))
+        frame = cv2.resize(
+            frame, (int(width * scale / 100), int(height * scale / 100)))
 
         # Convertir la imagen a escala de grises
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -62,23 +67,24 @@ def processFrame(camera: Camera):
                 if cv2.imwrite(objectName, face_image):
                     print("Face saved: " + objectName)
 
-        cv2.imshow('Frame', frame)
+     #   cv2.imshow('Frame', frame)
         frame_count += 1
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-        if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
-            break
+       # if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
+       #     break
 
     cv2.destroyAllWindows()
+
 
 # Cargar configuración desde JSON
 with open("config.json", "r") as conf:
     config = json.load(conf)
 
-cam = Camera(config["area"], config["subarea"], config["videoStreamUrl"],
-             config["s3Bucket"], config["isFisheye"], config["frameCaptureThreshold"] , config["tenant_id"])
+cam = Camera(config["area"], config["subarea"], config["videoStreamTest"],
+             config["s3Bucket"], config["isFisheye"], config["frameCaptureThreshold"], config["tenant_id"])
 
 try:
     processFrame(cam)
