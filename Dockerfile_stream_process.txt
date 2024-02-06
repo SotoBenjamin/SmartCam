@@ -1,0 +1,17 @@
+# Dockerfile para stream_process.py
+FROM python:3.8-slim
+
+# Establece el directorio de trabajo en el contenedor
+WORKDIR /app
+
+# Instala dependencias de OpenCV
+RUN apt-get update && apt-get install -y libgl1-mesa-glx
+
+# Copia los archivos del proyecto al contenedor
+COPY requirements.txt stream_process.py config.json /app/
+
+# Instala las dependencias del archivo requirements.txt
+RUN pip install -r requirements.txt
+
+# Comando para ejecutar el script
+CMD ["python", "stream_process.py"]

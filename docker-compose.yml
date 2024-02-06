@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  stream_process:
+    build:
+      context: .
+      dockerfile: Dockerfile_stream_process
+    volumes:
+      - ./images:/app/images
+
+  upload_test:
+    build:
+      context: .
+      dockerfile: Dockerfile_upload_test
+    volumes:
+      - ./images:/app/images

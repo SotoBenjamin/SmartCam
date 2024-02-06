@@ -1,0 +1,14 @@
+# Dockerfile para Upload_test.py
+FROM python:3.8-slim
+
+# Establece el directorio de trabajo en el contenedor
+WORKDIR /app
+
+# Copia los archivos del proyecto al contenedor
+COPY requirements.txt Upload_test.py /app/
+
+# Instala las dependencias del archivo requirements.txt
+RUN pip install -r requirements.txt
+
+# Comando para ejecutar el script
+CMD ["python", "Upload_test.py"]
