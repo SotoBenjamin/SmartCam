@@ -16,6 +16,7 @@ class Camera:
         self.isFisheye = isFisheye
         self.frameCaptureThreshold = frameCaptureThreshold
         self.tenant_id = tenant_id
+        self.current_faces = 0
 
 
 def captureVideo(camera, frame_queue):
@@ -35,7 +36,7 @@ def processFrame(camera: Camera):
         camera, frame_queue), daemon=True).start()
 
     frame_count = 0
-    scale = 100  # Escala reducida para un procesamiento más rápido
+    scale = 15  # Escala reducida para un procesamiento más rápido
 
     while True:
         if frame_queue.empty():
@@ -53,13 +54,14 @@ def processFrame(camera: Camera):
         # Detectar rostros cada 5 frames para reducir la carga de procesamiento
         if frame_count % 5 == 0:
             face_locations = face_recognition.face_locations(gray)
-
+            print(camera.current_faces)
         # Dibujar un rectángulo alrededor de los rostros y guardar solo el rostro
         for top, right, bottom, left in face_locations:
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
             face_image = frame[top:bottom, left:right]
 
-            if frame_count % camera.frameCaptureThreshold == 0 and len(face_locations) > 0:
+            if frame_count % camera.frameCaptureThreshold == 0 and len(face_locations) > 0 and len(face_locations) != camera.current_faces:
+                camera.current_faces = len(face_locations)
                 now = datetime.now()
                 objectName = f"images/{camera.area}_{now.strftime('%Y%m%d_%H%M%S')}_{camera.tenant_id}.jpg"
                 if not os.path.exists('images'):
@@ -67,14 +69,17 @@ def processFrame(camera: Camera):
                 if cv2.imwrite(objectName, face_image):
                     print("Face saved: " + objectName)
 
-     #   cv2.imshow('Frame', frame)
+        if len(face_locations) == 0:
+            camera.current_faces = 0
+
+        cv2.imshow('Frame', frame)
         frame_count += 1
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-       # if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
-       #     break
+        if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
+            break
 
     cv2.destroyAllWindows()
 
@@ -83,7 +88,7 @@ def processFrame(camera: Camera):
 with open("config.json", "r") as conf:
     config = json.load(conf)
 
-cam = Camera(config["area"], config["subarea"], config["videoStreamTest"],
+cam = Camera(config["area"], config["subarea"], config["videoStreamUrl"],
              config["s3Bucket"], config["isFisheye"], config["frameCaptureThreshold"], config["tenant_id"])
 
 try:
