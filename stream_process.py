@@ -58,7 +58,7 @@ class Camera:
             frame = cv2.resize(
                 frame, (int(width * scale / 100), int(height * scale / 100)))
             # Detectar rostros cada 5 frames para reducir la carga de procesamiento
-            if frame_count % 5 == 0:
+            if frame_count % 7 == 0:
                 boxes, _ = self.mtcnn.detect(frame)
             # Dibujar un rectángulo alrededor de los rostros y guardar solo el rostro
             if boxes is not None:
