@@ -4,7 +4,17 @@ import os
 from datetime import datetime
 import threading
 from queue import Queue
-from facenet_pytorch import MTCNN
+from facenet_pytorch import MTCNN, InceptionResnetV1
+import numpy as np
+import torch
+from torchvision import transforms
+
+transform = transforms.Compose([
+    transforms.ToPILImage(),
+    transforms.Resize((160, 160)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
 
 
 class Camera:
@@ -18,6 +28,7 @@ class Camera:
         self.tenant_id = tenant_id
         self.current_faces = 0
         self.mtcnn = MTCNN()
+        self.rostros = []
 
     def captureVideo(self, frame_queue):
         cap = cv2.VideoCapture(self.videoStreamUrl)
@@ -35,6 +46,9 @@ class Camera:
             frame_queue,), daemon=True).start()
         frame_count = 0
         scale = 100  # Escala reducida para un procesamiento más rápido
+
+        facenet = InceptionResnetV1(pretrained='vggface2').eval()
+
         while True:
             if frame_queue.empty():
                 continue
@@ -50,10 +64,26 @@ class Camera:
             if boxes is not None:
                 for box in boxes:
                     x1, y1, x2, y2 = box.astype(int)
+
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     face_image = frame[y1:y2, x1:x2]
-                    if frame_count % self.frameCaptureThreshold == 0 and len(boxes) > 0 and len(boxes) != self.current_faces:
-                        self.current_faces = len(boxes)
+
+                    # borrar
+                    rostro = frame[y1:y2, x1:x2]
+                    rostro_rgb = cv2.cvtColor(rostro, cv2.COLOR_BGR2RGB)
+                    rostro_transformado = transform(rostro_rgb)
+
+                    rostro_transformado = rostro_transformado.unsqueeze(0)
+                    embedding = facenet(rostro_transformado)
+
+                    # Compara el nuevo rostro con los rostros guardados
+                    for rostro_guardado in self.rostros:
+                        distancia = torch.dist(embedding, rostro_guardado)
+                        if distancia < 1.3:
+                            break
+                    else:
+                        # Si el rostro no está en la lista, lo añade
+                        self.rostros.append(embedding)
                         now = datetime.now()
                         objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{
                             self.tenant_id}.jpg"
@@ -61,8 +91,8 @@ class Camera:
                             os.makedirs('images')
                         if cv2.imwrite(objectName, face_image):
                             print("Face saved: " + objectName)
-            if boxes is None:
-                self.current_faces = 0
+                    # borrar
+
             cv2.imshow('Frame', frame)
             frame_count += 1
             if cv2.waitKey(1) & 0xFF == ord('q'):
