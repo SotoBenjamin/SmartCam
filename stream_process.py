@@ -5,7 +5,6 @@ from datetime import datetime
 import threading
 from queue import Queue
 from facenet_pytorch import MTCNN, InceptionResnetV1
-import numpy as np
 import torch
 from torchvision import transforms
 
@@ -18,7 +17,7 @@ transform = transforms.Compose([
 
 
 class Camera:
-    def __init__(self, area, subarea, videoStreamUrl, s3Bucket, isFisheye, frameCaptureThreshold, tenant_id):
+    def __init__(self, area, subarea, videoStreamUrl, s3Bucket, isFisheye, frameCaptureThreshold, tenant_id, fps, width_res, height_res):
         self.area = area
         self.subarea = subarea
         self.videoStreamUrl = videoStreamUrl
@@ -29,9 +28,18 @@ class Camera:
         self.current_faces = 0
         self.mtcnn = MTCNN()
         self.rostros = []
+        self.fps = fps
+        self.width_res = width_res
+        self.height_res = height_res
 
     def captureVideo(self, frame_queue):
         cap = cv2.VideoCapture(self.videoStreamUrl)
+
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        cap.set(cv2.CAP_PROP_FPS, self.fps)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width_res)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height_res)
+
         while cap.isOpened():
             ret, frame = cap.read()
             if ret:
@@ -45,7 +53,7 @@ class Camera:
         threading.Thread(target=self.captureVideo, args=(
             frame_queue,), daemon=True).start()
         frame_count = 0
-        scale = 100  # Escala reducida para un procesamiento más rápido
+        scale = 50  # Escala reducida para un procesamiento más rápido
 
         facenet = InceptionResnetV1(pretrained='vggface2').eval()
 
@@ -62,7 +70,7 @@ class Camera:
             frame = cv2.resize(
                 frame, (int(width * scale / 100), int(height * scale / 100)))
             # Detectar rostros cada 5 frames para reducir la carga de procesamiento
-            if frame_count % 7 == 0:
+            if frame_count % 5 == 0:
                 boxes, _ = self.mtcnn.detect(frame)
             # Dibujar un rectángulo alrededor de los rostros y guardar solo el rostro
             if boxes is not None:
@@ -116,7 +124,7 @@ with open("config.json", "r") as conf:
     config = json.load(conf)
 
 cam = Camera(config["area"], config["subarea"], config["videoStreamTest"], config["s3Bucket"],
-             config["isFisheye"], config["frameCaptureThreshold"], config["tenant_id"])
+             config["isFisheye"], config["frameCaptureThreshold"], config["tenant_id"], config["fps"], config["width_res"], config["height_res"])
 try:
     cam.processFrame()
 except Exception as e:

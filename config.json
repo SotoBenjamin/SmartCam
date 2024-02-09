@@ -1,10 +1,13 @@
 {
   "area": "example-area",
   "subarea": "example-sub-area",
-  "videoStreamUrl":"rtsp://admin:AdminN@t3k@192.168.1.108:554",
+  "videoStreamUrl": "rtsp://admin:AdminN@t3k@192.168.1.108:554",
   "videoStreamTest": 0,
   "s3Bucket": "example-bucket-name",
   "isFisheye": false,
   "frameCaptureThreshold": 15,
-  "tenant_id": "tiendaA"
+  "tenant_id": "tiendaA",
+  "fps": 25,
+  "width_res": 1280,
+  "height_res": 720
 }
