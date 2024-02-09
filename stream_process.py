@@ -53,6 +53,10 @@ class Camera:
             if frame_queue.empty():
                 continue
             frame = frame_queue.get()
+
+            if frame is None:
+                continue
+
             # Reducir la resolución del frame
             height, width, _ = frame.shape
             frame = cv2.resize(
@@ -68,30 +72,35 @@ class Camera:
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     face_image = frame[y1:y2, x1:x2]
 
-                    # borrar
-                    rostro = frame[y1:y2, x1:x2]
-                    rostro_rgb = cv2.cvtColor(rostro, cv2.COLOR_BGR2RGB)
-                    rostro_transformado = transform(rostro_rgb)
+                    if self.current_faces != len(boxes):
+                        # Comparacion de rostros
+                        rostro_rgb = cv2.cvtColor(
+                            face_image, cv2.COLOR_BGR2RGB)
+                        rostro_transformado = transform(rostro_rgb)
 
-                    rostro_transformado = rostro_transformado.unsqueeze(0)
-                    embedding = facenet(rostro_transformado)
+                        rostro_transformado = rostro_transformado.unsqueeze(0)
+                        embedding = facenet(rostro_transformado)
 
-                    # Compara el nuevo rostro con los rostros guardados
-                    for rostro_guardado in self.rostros:
-                        distancia = torch.dist(embedding, rostro_guardado)
-                        if distancia < 1.3:
-                            break
-                    else:
-                        # Si el rostro no está en la lista, lo añade
-                        self.rostros.append(embedding)
-                        now = datetime.now()
-                        objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{
-                            self.tenant_id}.jpg"
-                        if not os.path.exists('images'):
-                            os.makedirs('images')
-                        if cv2.imwrite(objectName, face_image):
-                            print("Face saved: " + objectName)
-                    # borrar
+                        # Compara el nuevo rostro con los rostros guardados
+                        for rostro_guardado in self.rostros:
+                            distancia = torch.dist(embedding, rostro_guardado)
+                            if distancia < 1.3:
+                                break
+                        else:
+                            # Si el rostro no está en la lista, lo añade
+                            self.rostros.append(embedding)
+                            now = datetime.now()
+                            objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{
+                                self.tenant_id}.jpg"
+                            if not os.path.exists('images'):
+                                os.makedirs('images')
+                            if cv2.imwrite(objectName, face_image):
+                                print("Face saved: " + objectName)
+
+                self.current_faces = len(boxes)
+
+            else:
+                self.current_faces = 0
 
             cv2.imshow('Frame', frame)
             frame_count += 1
