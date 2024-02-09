@@ -35,7 +35,7 @@ class Camera:
         self.height_res = height_res
         self.threads_available = os.cpu_count()
 
-    def compare_faces(self, embedding, rostro_guardado, umbral=1.3):
+    def compare_faces(self, embedding, rostro_guardado, umbral=1.1):
         distancia = torch.dist(embedding, rostro_guardado)
         return distancia < umbral
 
