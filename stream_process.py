@@ -7,6 +7,8 @@ from queue import Queue
 from facenet_pytorch import MTCNN, InceptionResnetV1
 import torch
 from torchvision import transforms
+from concurrent.futures import ThreadPoolExecutor
+import os
 
 transform = transforms.Compose([
     transforms.ToPILImage(),
@@ -31,6 +33,11 @@ class Camera:
         self.fps = fps
         self.width_res = width_res
         self.height_res = height_res
+        self.threads_available = os.cpu_count()
+
+    def compare_faces(self, embedding, rostro_guardado, umbral=1.3):
+        distancia = torch.dist(embedding, rostro_guardado)
+        return distancia < umbral
 
     def captureVideo(self, frame_queue):
         cap = cv2.VideoCapture(self.videoStreamUrl)
@@ -53,70 +60,73 @@ class Camera:
         threading.Thread(target=self.captureVideo, args=(
             frame_queue,), daemon=True).start()
         frame_count = 0
-        scale = 50  # Escala reducida para un procesamiento más rápido
+        scale = 50  # Escala para mostrar en pantalla
 
         facenet = InceptionResnetV1(pretrained='vggface2').eval()
 
-        while True:
-            if frame_queue.empty():
-                continue
-            frame = frame_queue.get()
+        with ThreadPoolExecutor(max_workers=self.threads_available) as executor:
 
-            if frame is None:
-                continue
+            while True:
+                if frame_queue.empty():
+                    continue
+                frame = frame_queue.get()
 
-            # Reducir la resolución del frame
-            height, width, _ = frame.shape
-            frame = cv2.resize(
-                frame, (int(width * scale / 100), int(height * scale / 100)))
-            # Detectar rostros cada 5 frames para reducir la carga de procesamiento
-            if frame_count % 5 == 0:
-                boxes, _ = self.mtcnn.detect(frame)
-            # Dibujar un rectángulo alrededor de los rostros y guardar solo el rostro
-            if boxes is not None:
-                for box in boxes:
-                    x1, y1, x2, y2 = box.astype(int)
+                if frame is None:
+                    continue
 
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    face_image = frame[y1:y2, x1:x2]
+                # Reducir la resolución del frame
+                height, width, _ = frame.shape
+                frame = cv2.resize(
+                    frame, (int(width * scale / 100), int(height * scale / 100)))
+                # Detectar rostros cada 7 frames para reducir la carga de procesamiento
+                if frame_count % 7 == 0:
+                    boxes, _ = self.mtcnn.detect(frame)
+                # Dibujar un rectángulo alrededor de los rostros y guardar solo el rostro
+                if boxes is not None:
+                    for box in boxes:
+                        x1, y1, x2, y2 = box.astype(int)
 
-                    if self.current_faces != len(boxes):
-                        # Comparacion de rostros
-                        rostro_rgb = cv2.cvtColor(
-                            face_image, cv2.COLOR_BGR2RGB)
-                        rostro_transformado = transform(rostro_rgb)
+                        cv2.rectangle(frame, (x1, y1),
+                                      (x2, y2), (0, 255, 0), 2)
+                        face_image = frame[y1:y2, x1:x2]
 
-                        rostro_transformado = rostro_transformado.unsqueeze(0)
-                        embedding = facenet(rostro_transformado)
+                        if self.current_faces != len(boxes):
+                            # Comparacion de rostros
+                            rostro_rgb = cv2.cvtColor(
+                                face_image, cv2.COLOR_BGR2RGB)
+                            rostro_transformado = transform(rostro_rgb)
 
-                        # Compara el nuevo rostro con los rostros guardados
-                        for rostro_guardado in self.rostros:
-                            distancia = torch.dist(embedding, rostro_guardado)
-                            if distancia < 1.3:
-                                break
-                        else:
-                            # Si el rostro no está en la lista, lo añade
-                            self.rostros.append(embedding)
-                            now = datetime.now()
-                            objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{
-                                self.tenant_id}.jpg"
-                            if not os.path.exists('images'):
-                                os.makedirs('images')
-                            if cv2.imwrite(objectName, face_image):
-                                print("Face saved: " + objectName)
+                            rostro_transformado = rostro_transformado.unsqueeze(
+                                0)
+                            embedding = facenet(rostro_transformado)
 
-                self.current_faces = len(boxes)
+                            # Compara el nuevo rostro con los rostros guardados
+                            futures = [executor.submit(
+                                self.compare_faces, embedding, rostro_guardado) for rostro_guardado in self.rostros]
+                            results = [f.result() for f in futures]
+                            if not any(results):
+                                # Si el rostro no está en la lista, lo añade
+                                self.rostros.append(embedding)
+                                now = datetime.now()
+                                objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{
+                                    self.tenant_id}.jpg"
+                                if not os.path.exists('images'):
+                                    os.makedirs('images')
+                                if cv2.imwrite(objectName, face_image):
+                                    print("Face saved: " + objectName)
 
-            else:
-                self.current_faces = 0
+                    self.current_faces = len(boxes)
 
-            cv2.imshow('Frame', frame)
-            frame_count += 1
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-            if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
-                break
-        cv2.destroyAllWindows()
+                else:
+                    self.current_faces = 0
+
+                cv2.imshow('Frame', frame)
+                frame_count += 1
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
+                    break
+            cv2.destroyAllWindows()
 
 
 # Cargar configuración desde JSON
