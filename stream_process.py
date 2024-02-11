@@ -56,7 +56,7 @@ class Camera:
         cap.release()
 
     def processFrame(self):
-        frame_queue = Queue(maxsize=10)
+        frame_queue = Queue(maxsize=25)
         threading.Thread(target=self.captureVideo, args=(
             frame_queue,), daemon=True).start()
         frame_count = 0
@@ -86,6 +86,9 @@ class Camera:
                     for box in boxes:
                         x1, y1, x2, y2 = box.astype(int)
 
+                        x1, y1 = max(0, x1), max(0, y1)
+                        x2, y2 = min(width-1, x2), min(height-1, y2)
+
                         cv2.rectangle(frame, (x1, y1),
                                       (x2, y2), (0, 255, 0), 2)
                         face_image = frame[y1:y2, x1:x2]
@@ -108,8 +111,7 @@ class Camera:
                                 # Si el rostro no está en la lista, lo añade
                                 self.rostros.append(embedding)
                                 now = datetime.now()
-                                objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{
-                                    self.tenant_id}.jpg"
+                                objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{self.tenant_id}.jpg"
                                 if not os.path.exists('images'):
                                     os.makedirs('images')
                                 if cv2.imwrite(objectName, face_image):
