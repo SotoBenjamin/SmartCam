@@ -9,13 +9,7 @@ import torch
 from torchvision import transforms
 from concurrent.futures import ThreadPoolExecutor
 import os
-
-transform = transforms.Compose([
-    transforms.ToPILImage(),
-    transforms.Resize((160, 160)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
+import torchvision.transforms.functional as TF
 
 
 class Camera:
@@ -35,9 +29,18 @@ class Camera:
         self.height_res = height_res
         self.threads_available = os.cpu_count()
 
-    def compare_faces(self, embedding, rostro_guardado, umbral=1.1):
+    def compare_faces(self, embedding, rostro_guardado, umbral=1.05):
         distancia = torch.dist(embedding, rostro_guardado)
         return distancia < umbral
+
+    def transform_image(self, image):
+        image = TF.to_pil_image(image)
+        image = TF.resize(image, (160, 160))
+        image = TF.to_tensor(image)
+        image = TF.normalize(image, mean=[0.485, 0.456, 0.406], std=[
+            0.229, 0.224, 0.225])
+        image = image.unsqueeze(0)
+        return image
 
     def captureVideo(self, frame_queue):
         cap = cv2.VideoCapture(self.videoStreamUrl)
@@ -94,13 +97,11 @@ class Camera:
                         face_image = frame[y1:y2, x1:x2]
 
                         if self.current_faces != len(boxes):
-                            # Comparacion de rostros
-                            rostro_rgb = cv2.cvtColor(
-                                face_image, cv2.COLOR_BGR2RGB)
-                            rostro_transformado = transform(rostro_rgb)
 
-                            rostro_transformado = rostro_transformado.unsqueeze(
-                                0)
+                            # Comparacion de rostros
+                            rostro_transformado = self.transform_image(
+                                face_image)
+
                             embedding = facenet(rostro_transformado)
 
                             # Compara el nuevo rostro con los rostros guardados
@@ -111,7 +112,8 @@ class Camera:
                                 # Si el rostro no está en la lista, lo añade
                                 self.rostros.append(embedding)
                                 now = datetime.now()
-                                objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{self.tenant_id}.jpg"
+                                objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{
+                                    self.tenant_id}.jpg"
                                 if not os.path.exists('images'):
                                     os.makedirs('images')
                                 if cv2.imwrite(objectName, face_image):
