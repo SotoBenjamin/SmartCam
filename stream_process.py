@@ -6,7 +6,6 @@ import threading
 from queue import Queue
 from facenet_pytorch import MTCNN, InceptionResnetV1
 import torch
-from torchvision import transforms
 from concurrent.futures import ThreadPoolExecutor
 import os
 import torchvision.transforms.functional as TF
