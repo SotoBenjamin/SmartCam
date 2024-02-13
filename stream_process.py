@@ -26,7 +26,7 @@ class Camera:
         # Configuración de la detección de rostros
         self.new_face_event = threading.Event()
         self.current_faces = 0
-        self.rostros = []
+        self.rostros = set()
         self.threads_available = os.cpu_count()
         self.faces_queue = Queue()
         self.mtcnn = MTCNN()
@@ -74,7 +74,7 @@ class Camera:
                         break
                 else:
                     # Si el rostro no está en la lista, lo añade
-                    self.rostros.append(embedding)
+                    self.rostros.add(embedding)
                     now = datetime.now()
                     objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{
                         self.tenant_id}.jpg"
@@ -85,7 +85,7 @@ class Camera:
             self.new_face_event.clear()
 
     def processFrame(self):
-        frame_queue = Queue(maxsize=25)
+        frame_queue = Queue(maxsize=30)
         threading.Thread(target=self.captureVideo, args=(
             frame_queue,), daemon=True).start()
         threading.Thread(target=self.processImage, daemon=True).start()
