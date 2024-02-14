@@ -73,19 +73,19 @@ class Camera:
                     if self.compare_faces(embedding, rostro_guardado):
                         break
                 else:
-                    # Si el rostro no está en la lista, lo añade
                     self.rostros.add(embedding)
                     now = datetime.now()
-                    objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{
-                        self.tenant_id}.jpg"
+                    objectName = f"images/{self.area}_{now.strftime('%Y%m%d_%H%M%S')}_{self.tenant_id}.jpg"
                     if not os.path.exists('images'):
                         os.makedirs('images')
                     if cv2.imwrite(objectName, face_image):
                         print("Face saved: " + objectName)
+                print("Elementos restantes en la cola: " +
+                      str(self.faces_queue.qsize()))
             self.new_face_event.clear()
 
     def processFrame(self):
-        frame_queue = Queue(maxsize=30)
+        frame_queue = Queue(maxsize=25)
         threading.Thread(target=self.captureVideo, args=(
             frame_queue,), daemon=True).start()
         threading.Thread(target=self.processImage, daemon=True).start()
