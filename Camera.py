@@ -3,6 +3,8 @@ import cv2
 from queue import Queue
 import threading
 from deepface import DeepFace
+from FaceRecognizer import FaceRecognizer
+import os
 
 
 class Camera:
@@ -29,6 +31,8 @@ class Camera:
         self.__frame_count = 0
         self.__scale = 50
         self.__results = None
+        self.__current_faces = 0
+        self.__face_recognizer = FaceRecognizer()
 
     def __captureVideo(self):
         cap = cv2.VideoCapture(self.__videoStreamUrl)
@@ -46,6 +50,8 @@ class Camera:
                 break
 
     def start(self):
+        if not os.path.exists('faces'):
+            os.makedirs('faces')
 
         try:
             self.__thread.start()
@@ -59,6 +65,7 @@ class Camera:
                     frame, (int(width * self.__scale / 100), int(height * self.__scale / 100)))
 
                 if self.__frame_count % 5 == 0:
+                    self.__frame_count = 0
                     try:
                         self.__results = DeepFace.extract_faces(
                             frame, detector_backend='fastmtcnn')
@@ -73,8 +80,20 @@ class Camera:
                         w = result["facial_area"]["w"]
                         h = result["facial_area"]["h"]
 
-                        cv2.rectangle(frame, (x, y), (x+w, y+h),
-                                      (0, 255, 0), 2)
+                        x1 = max(0, x)
+                        y1 = max(0, y)
+                        x2 = min(width-1, x+w)
+                        y2 = min(height-1, y+h)
+
+                        cv2.rectangle(frame, (x1, y1),
+                                      (x2, y2), (255, 255, 0), 1)
+                        if self.__current_faces != len(self.__results):
+                            self.__face_recognizer.add_face(
+                                frame[y1:y2, x1:x2])
+
+                    self.__current_faces = len(self.__results)
+                else:
+                    self.__current_faces = 0
 
                 cv2.imshow('Frame', frame)
                 self.__frame_count += 1
@@ -87,5 +106,5 @@ class Camera:
 
 
 if __name__ == "__main__":
-    cam = Camera('config.json', isTest=True)
+    cam = Camera("config.json", True)
     cam.start()
