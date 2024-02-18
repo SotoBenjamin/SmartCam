@@ -52,7 +52,9 @@ class Camera:
     def start(self):
         if not os.path.exists('faces'):
             os.makedirs('faces')
-
+        else:
+            for file in os.listdir('faces'):
+                os.remove(f"faces/{file}")
         try:
             self.__thread.start()
             while True:
@@ -85,12 +87,12 @@ class Camera:
                         x2 = min(width-1, x+w)
                         y2 = min(height-1, y+h)
 
-                        cv2.rectangle(frame, (x1, y1),
-                                      (x2, y2), (255, 255, 0), 1)
                         if self.__current_faces != len(self.__results):
                             self.__face_recognizer.add_face(
                                 frame[y1:y2, x1:x2])
 
+                        cv2.rectangle(frame, (x1, y1),
+                                      (x2, y2), (255, 255, 0), 1)
                     self.__current_faces = len(self.__results)
                 else:
                     self.__current_faces = 0
