@@ -32,7 +32,7 @@ class Camera:
         self.__scale = 50
         self.__results = None
         self.__current_faces = 0
-        self.__face_recognizer = FaceRecognizer()
+        self.__face_recognizer = FaceRecognizer(self.__area, self.__tenant_id)
         self.__mtcnn = MTCNN(select_largest=False, keep_all=True)
 
     def __captureVideo(self):
@@ -89,18 +89,16 @@ class Camera:
                             self.__face_recognizer.add_face(
                                 frame[y1:y2, x1:x2])
 
-                        cv2.rectangle(frame, (x1, y1),
-                                      (x2, y2), (255, 255, 0), 1)
+                        # cv2.rectangle(frame, (x1, y1),(x2, y2), (255, 255, 0), 1)
                     self.__current_faces = len(self.__results)
                 else:
                     self.__current_faces = 0
 
-                cv2.imshow('Frame', frame)
+                # cv2.imshow('Frame', frame)
                 self.__frame_count += 1
-                if cv2.waitKey(1) & 0xFF == ord('q') or cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
+                if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
             cv2.destroyAllWindows()
-            self.__face_recognizer.clear_queue()
 
         except Exception as e:
             print("Error: {}.".format(e))

@@ -2,8 +2,9 @@ import requests
 import glob
 import os
 
-path = '..\\SmartCam\\images'
+path = '..\\SmartCam\\faces'
 os.chdir(path)
+
 
 def client():
     pattern = "*.jpg"
@@ -47,7 +48,7 @@ def client():
 
 
 def file_size():
-   return len(os.listdir(os.getcwd()))
+    return len(os.listdir(os.getcwd()))
 
 
 number_files = file_size()

@@ -140,8 +140,8 @@ class Camera:
 with open("config.json", "r") as conf:
     config = json.load(conf)
 
-cam = Camera(config["area"], config["subarea"], config["videoStreamTest"], config["s3Bucket"],
-             config["isFisheye"], config["frameCaptureThreshold"], config["tenant_id"], config["fps"], config["width_res"], config["height_res"])
+cam = Camera(config["area"], config["subarea"], 0, config["s3Bucket"],
+             config["isFishEye"], config["frameCaptureThreshold"], config["tenant_id"], config["fps"], config["width_res"], config["height_res"])
 try:
     cam.processFrame()
 except Exception as e:
