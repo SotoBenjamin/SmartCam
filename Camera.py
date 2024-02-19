@@ -2,7 +2,7 @@ import json
 import cv2
 from queue import Queue
 import threading
-from deepface import DeepFace
+from facenet_pytorch import MTCNN
 from FaceRecognizer import FaceRecognizer
 import os
 
@@ -25,7 +25,7 @@ class Camera:
         self.__height_res = config["height_res"]
 
         # Execution Properties
-        self.__frame_queue = Queue(maxsize=30)
+        self.__frame_queue = Queue(maxsize=20)
         self.__thread = threading.Thread(
             target=self.__captureVideo, daemon=True)
         self.__frame_count = 0
@@ -33,6 +33,7 @@ class Camera:
         self.__results = None
         self.__current_faces = 0
         self.__face_recognizer = FaceRecognizer()
+        self.__mtcnn = MTCNN(select_largest=False, keep_all=True)
 
     def __captureVideo(self):
         cap = cv2.VideoCapture(self.__videoStreamUrl)
@@ -62,6 +63,9 @@ class Camera:
                     continue
                 frame = self.__frame_queue.get()
 
+                if frame is None:
+                    continue
+
                 height, width, _ = frame.shape
                 frame = cv2.resize(
                     frame, (int(width * self.__scale / 100), int(height * self.__scale / 100)))
@@ -69,23 +73,17 @@ class Camera:
                 if self.__frame_count % 5 == 0:
                     self.__frame_count = 0
                     try:
-                        self.__results = DeepFace.extract_faces(
-                            frame, detector_backend='fastmtcnn')
                         # show a rectangle for each face
+                        self.__results, _ = self.__mtcnn.detect(frame)
                     except Exception as e:
                         self.__results = None
 
                 if self.__results is not None:
-                    for result in self.__results:
-                        x = result["facial_area"]["x"]
-                        y = result["facial_area"]["y"]
-                        w = result["facial_area"]["w"]
-                        h = result["facial_area"]["h"]
+                    for box in self.__results:
+                        x1, y1, x2, y2 = box.astype(int)
 
-                        x1 = max(0, x)
-                        y1 = max(0, y)
-                        x2 = min(width-1, x+w)
-                        y2 = min(height-1, y+h)
+                        x1, y1 = max(0, x1), max(0, y1)
+                        x2, y2 = min(width-1, x2), min(height-1, y2)
 
                         if self.__current_faces != len(self.__results):
                             self.__face_recognizer.add_face(
@@ -102,6 +100,7 @@ class Camera:
                 if cv2.waitKey(1) & 0xFF == ord('q') or cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
                     break
             cv2.destroyAllWindows()
+            self.__face_recognizer.clear_queue()
 
         except Exception as e:
             print("Error: {}.".format(e))
