@@ -1,5 +1,7 @@
 import requests
 import face_recognition
+from multiprocessing import Queue, Process
+import queue
 
 
 class FaceRecognizer:
@@ -7,6 +9,10 @@ class FaceRecognizer:
         self.__area = area
         self.__tenant_id = tenant_id
         self.__face_encodings = []
+        self.__image_queue = Queue()
+        self.__image_sender_process = Process(
+            target=self.process_images, daemon=True)
+        self.__image_sender_process.start()
 
     def sendImageToS3(self, image_path):
         Api_Url = 'https://v9buc4do9f.execute-api.us-east-1.amazonaws.com/dev'
@@ -38,8 +44,26 @@ class FaceRecognizer:
         else:
             print(f"Estado de la respuesta de GET: {r2.status_code}")
 
+    def process_images(self):
+        while True:
+            try:
+                data = self.__image_queue.get(
+                    timeout=1)  # Espera hasta 1 segundo
+            except queue.Empty:
+                continue
+            if data is None:  # Señal de parada
+                break
+            frame, known_face_locations, image_path = data
+            face_encoding = face_recognition.face_encodings(
+                frame, known_face_locations)[0]
+            self.__face_encodings.append(face_encoding)
+            print("Caras actuales: " + str(len(self.__face_encodings)))
+            self.sendImageToS3(image_path)
+
     def addFaceEncoding(self, frame, known_face_locations: list, image_path: str) -> None:
-        # face_encoding = face_recognition.face_encodings(frame, known_face_locations)[0]
-        # self.__face_encodings.append(face_encoding)
-        # print("Caras actuales: " + str(len(self.__face_encodings)))
-        self.sendImageToS3(image_path)
+        self.__image_queue.put((frame, known_face_locations, image_path))
+
+    def stop(self):
+        self.__image_queue.put(None)
+        self.__image_sender_process.join()
+        self.__image_sender_process.close()

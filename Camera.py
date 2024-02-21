@@ -152,7 +152,12 @@ class Camera:
         except Exception as e:
             print("Error: {}.".format(e))
 
+    def stop(self):
+        self.__face_recognizer.stop()
+        print("Camera stopped")
+
 
 if __name__ == "__main__":
     cam = Camera("config.json", True)
     cam.start()
+    cam.stop()
