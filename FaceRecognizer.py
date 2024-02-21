@@ -15,20 +15,22 @@ def worker(faces_queue: Queue, faces_registered, area, tenant_id):
         faces_queue.close()
 
 
-def analize_face(face, faces_registered, area, tenant_id):
+def analize_face(face, faces_registered, area, tenant_id) -> None:
+
     for saved_face in faces_registered:
-        result = DeepFace.verify(
-            face, saved_face, enforce_detection=False, detector_backend="opencv", model_name="DeepID", distance_metric="euclidean_l2")
+        result = DeepFace.verify(face, saved_face, enforce_detection=False,
+                                 detector_backend="opencv", model_name="Dlib", distance_metric="euclidean_l2")
         if result["verified"]:
             print("Face is similar to a saved face, not saving.")
             return
 
-    # Si la cara actual no es similar a ninguna cara guardada, guárdala
     now = datetime.now()
     objectName = f"faces/{area}_{now.strftime('%Y%m%d_%H%M%S')}_{tenant_id}.jpg"
     cv2.imwrite(objectName, face)
     print("Face saved: " + objectName)
     faces_registered.add(objectName)
+
+    return
 
 
 class FaceRecognizer:

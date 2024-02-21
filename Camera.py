@@ -112,8 +112,7 @@ class Camera:
                         face_frame = frame[y1:y1 + h, x1:x1 + w]
 
                         if self.__current_faces != len(self.__results.detections):
-                            print("Face detected, pusheando a la cola.")
-                            # self.__face_recognizer.add_face(face_frame)
+                            self.__face_recognizer.add_face(face_frame)
 
                         self.__drawBorders(frame, x1, y1, w, h)
 
@@ -127,12 +126,14 @@ class Camera:
                     break
                 if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
                     break
+
             cv2.destroyAllWindows()
+            self.__face_recognizer.clear_queue()
 
         except Exception as e:
             print("Error: {}.".format(e))
 
 
 if __name__ == "__main__":
-    cam = Camera("config.json", False)
+    cam = Camera("config.json", True)
     cam.start()
