@@ -5,6 +5,7 @@ import threading
 import mediapipe as mp
 from FaceRecognizer import FaceRecognizer
 import os
+from datetime import datetime
 
 
 class Camera:
@@ -77,6 +78,17 @@ class Camera:
         cv2.line(frame, (x1 + w, y1 + h),
                  (x1 + w, y1 + h - line_size), color, thickness)
 
+    def __saveImageLocal(self, face_frame, i: int) -> str:
+        now = datetime.now()
+        objectName = f"faces/{self.__area}_{self.__subarea}_{now.strftime('%Y%m%d_%H%M%S')}{i}_{self.__tenant_id}.jpg"
+        try:
+            cv2.imwrite(objectName, face_frame)
+            print("Face saved: " + objectName)
+        except Exception as e:
+            print("Rostro vacio o incompleto")
+
+        return objectName
+
     def start(self):
         if not os.path.exists('faces'):
             os.makedirs('faces')
@@ -103,16 +115,24 @@ class Camera:
                     self.__results = self.__face_detection.process(frame_rgb)
 
                 if self.__results.detections:
-                    for face in self.__results.detections:
+                    for i, face in enumerate(self.__results.detections):
                         # Obtener el cuadro delimitador
                         x1, y1, w, h = face.location_data.relative_bounding_box.xmin, face.location_data.relative_bounding_box.ymin, face.location_data.relative_bounding_box.width, face.location_data.relative_bounding_box.height
                         x1, y1, w, h = int(x1 * frame.shape[1]), int(y1 * frame.shape[0]), int(
                             w * frame.shape[1]), int(h * frame.shape[0])
 
+                        x1 = max(0, min(x1, frame.shape[1] - 1))
+                        y1 = max(0, min(y1, frame.shape[0] - 1))
+                        w = min(w, frame.shape[1] - x1)
+                        h = min(h, frame.shape[0] - y1)
+
                         face_frame = frame[y1:y1 + h, x1:x1 + w]
 
                         if self.__current_faces != len(self.__results.detections):
-                            self.__face_recognizer.add_face(face_frame)
+                            objectName = self.__saveImageLocal(face_frame, i)
+                            thread = threading.Thread(
+                                target=self.__face_recognizer.addFaceEncoding, args=(frame, [(y1, x1 + w, y1 + h, x1)], objectName))
+                            thread.start()
 
                         self.__drawBorders(frame, x1, y1, w, h)
 
@@ -128,7 +148,6 @@ class Camera:
                     break
 
             cv2.destroyAllWindows()
-            self.__face_recognizer.clear_queue()
 
         except Exception as e:
             print("Error: {}.".format(e))

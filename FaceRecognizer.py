@@ -1,57 +1,45 @@
-from multiprocessing import Process, Queue
-from deepface import DeepFace
-from datetime import datetime
-import cv2
-
-
-def worker(faces_queue: Queue, faces_registered, area, tenant_id):
-    try:
-        while True:
-            if not faces_queue.empty():
-                face = faces_queue.get()
-                print("Caras en la cola: ", faces_queue.qsize())
-                analize_face(face, faces_registered, area, tenant_id)
-    finally:
-        faces_queue.close()
-
-
-def analize_face(face, faces_registered, area, tenant_id) -> None:
-
-    for saved_face in faces_registered:
-        result = DeepFace.verify(face, saved_face, enforce_detection=False,
-                                 detector_backend="opencv", model_name="Dlib", distance_metric="euclidean_l2")
-        if result["verified"]:
-            print("Face is similar to a saved face, not saving.")
-            return
-
-    now = datetime.now()
-    objectName = f"faces/{area}_{now.strftime('%Y%m%d_%H%M%S')}_{tenant_id}.jpg"
-    cv2.imwrite(objectName, face)
-    print("Face saved: " + objectName)
-    faces_registered.add(objectName)
-
-    return
+import requests
+import face_recognition
 
 
 class FaceRecognizer:
     def __init__(self, area: str, tenant_id: str):
-        self.__faces_queue = Queue()
-        self.__faces_registered = set()
         self.__area = area
         self.__tenant_id = tenant_id
-        self.__worker_process = Process(
-            target=worker, args=(self.__faces_queue, self.__faces_registered, self.__area, self.__tenant_id), daemon=True)
-        self.__worker_process.start()
+        self.__face_encodings = []
 
-    def add_face(self, frame):
-        self.__faces_queue.put(frame)
+    def sendImageToS3(self, image_path):
+        Api_Url = 'https://v9buc4do9f.execute-api.us-east-1.amazonaws.com/dev'
+        bucket = 'smart-cam-images'
+        image_name = image_path[image_path.rfind("/") + 1:]
 
-    def clear_queue(self):
-        # Add a sentinel value to indicate the worker to stop processing
-        self.__faces_queue.put(None)
+        url_put = f"{Api_Url}/{bucket}/{image_name}"
 
-        # Wait for the worker process to finish
-        self.__worker_process.join()
+        with open(image_path, 'rb') as file:
+            image_data = file.read()
+            headers_put = {'Content-Type': 'image/jpg'}
+            # Realiza la solicitud PUT
+            r = requests.put(url_put, data=image_data, headers=headers_put)
+            print(f"Estado de la respuesta de subida: {r.status_code}")
 
-        # Close the queue
-        self.__faces_queue.close()
+        url_get = f"{Api_Url}/reo"
+        params = {'objectKey': f"{image_name}"}
+
+        headers_get = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        }
+
+        r2 = requests.get(url_get, headers=headers_get, params=params)
+
+        if r2.status_code == 200:
+            response_data = r2.json()
+            print(response_data)
+        else:
+            print(f"Estado de la respuesta de GET: {r2.status_code}")
+
+    def addFaceEncoding(self, frame, known_face_locations: list, image_path: str) -> None:
+        # face_encoding = face_recognition.face_encodings(frame, known_face_locations)[0]
+        # self.__face_encodings.append(face_encoding)
+        # print("Caras actuales: " + str(len(self.__face_encodings)))
+        self.sendImageToS3(image_path)
