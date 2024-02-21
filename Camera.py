@@ -2,7 +2,7 @@ import json
 import cv2
 from queue import Queue
 import threading
-from facenet_pytorch import MTCNN
+import mediapipe as mp
 from FaceRecognizer import FaceRecognizer
 import os
 
@@ -33,7 +33,7 @@ class Camera:
         self.__results = None
         self.__current_faces = 0
         self.__face_recognizer = FaceRecognizer(self.__area, self.__tenant_id)
-        self.__mtcnn = MTCNN(select_largest=False, keep_all=True)
+        self.__face_detection = mp.solutions.face_detection.FaceDetection()
 
     def __captureVideo(self):
         cap = cv2.VideoCapture(self.__videoStreamUrl)
@@ -49,6 +49,33 @@ class Camera:
                 self.__frame_queue.put(frame)
             else:
                 break
+
+    def __drawBorders(self, frame, x1, y1, w, h) -> None:
+        line_size = 20
+        color = (255, 255, 0)
+        thickness = 2
+
+        # Superior izquierda
+        cv2.line(frame, (x1, y1), (x1 + line_size, y1), color, thickness)
+        cv2.line(frame, (x1, y1), (x1, y1 + line_size), color, thickness)
+
+        # Superior derecha
+        cv2.line(frame, (x1 + w, y1), (x1 + w -
+                 line_size, y1), color, thickness)
+        cv2.line(frame, (x1 + w, y1),
+                 (x1 + w, y1 + line_size), color, thickness)
+
+        # Inferior izquierda
+        cv2.line(frame, (x1, y1 + h),
+                 (x1 + line_size, y1 + h), color, thickness)
+        cv2.line(frame, (x1, y1 + h), (x1, y1 +
+                 h - line_size), color, thickness)
+
+        # Inferior derecha
+        cv2.line(frame, (x1 + w, y1 + h), (x1 + w -
+                 line_size, y1 + h), color, thickness)
+        cv2.line(frame, (x1 + w, y1 + h),
+                 (x1 + w, y1 + h - line_size), color, thickness)
 
     def start(self):
         if not os.path.exists('faces'):
@@ -72,31 +99,33 @@ class Camera:
 
                 if self.__frame_count % 5 == 0:
                     self.__frame_count = 0
-                    try:
-                        # show a rectangle for each face
-                        self.__results, _ = self.__mtcnn.detect(frame)
-                    except Exception as e:
-                        self.__results = None
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    self.__results = self.__face_detection.process(frame_rgb)
 
-                if self.__results is not None:
-                    for box in self.__results:
-                        x1, y1, x2, y2 = box.astype(int)
+                if self.__results.detections:
+                    for face in self.__results.detections:
+                        # Obtener el cuadro delimitador
+                        x1, y1, w, h = face.location_data.relative_bounding_box.xmin, face.location_data.relative_bounding_box.ymin, face.location_data.relative_bounding_box.width, face.location_data.relative_bounding_box.height
+                        x1, y1, w, h = int(x1 * frame.shape[1]), int(y1 * frame.shape[0]), int(
+                            w * frame.shape[1]), int(h * frame.shape[0])
 
-                        x1, y1 = max(0, x1), max(0, y1)
-                        x2, y2 = min(width-1, x2), min(height-1, y2)
+                        face_frame = frame[y1:y1 + h, x1:x1 + w]
 
-                        if self.__current_faces != len(self.__results):
-                            self.__face_recognizer.add_face(
-                                frame[y1:y2, x1:x2])
+                        if self.__current_faces != len(self.__results.detections):
+                            print("Face detected, pusheando a la cola.")
+                            # self.__face_recognizer.add_face(face_frame)
 
-                        # cv2.rectangle(frame, (x1, y1),(x2, y2), (255, 255, 0), 1)
-                    self.__current_faces = len(self.__results)
+                        self.__drawBorders(frame, x1, y1, w, h)
+
+                    self.__current_faces = len(self.__results.detections)
                 else:
                     self.__current_faces = 0
 
-                # cv2.imshow('Frame', frame)
+                cv2.imshow('Frame', frame)
                 self.__frame_count += 1
                 if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                if cv2.getWindowProperty('Frame', cv2.WND_PROP_VISIBLE) < 1:
                     break
             cv2.destroyAllWindows()
 
@@ -105,5 +134,5 @@ class Camera:
 
 
 if __name__ == "__main__":
-    cam = Camera("config.json", True)
+    cam = Camera("config.json", False)
     cam.start()
