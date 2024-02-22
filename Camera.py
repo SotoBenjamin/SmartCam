@@ -33,7 +33,8 @@ class Camera:
         self.__scale = 50
         self.__results = None
         self.__current_faces = 0
-        self.__face_recognizer = FaceRecognizer(self.__area, self.__tenant_id)
+        self.__face_recognizer = FaceRecognizer(
+            self.__area, self.__subarea, self.__tenant_id)
         self.__face_detection = mp.solutions.face_detection.FaceDetection()
 
     def __captureVideo(self):
@@ -126,13 +127,9 @@ class Camera:
                         w = min(w, frame.shape[1] - x1)
                         h = min(h, frame.shape[0] - y1)
 
-                        face_frame = frame[y1:y1 + h, x1:x1 + w]
-
                         if self.__current_faces != len(self.__results.detections):
-                            objectName = self.__saveImageLocal(face_frame, i)
-                            thread = threading.Thread(
-                                target=self.__face_recognizer.addFaceEncoding, args=(frame, [(y1, x1 + w, y1 + h, x1)], objectName))
-                            thread.start()
+                            self.__face_recognizer.addFaceEncoding(
+                                frame, [(y1, x1 + w, y1 + h, x1)], i)
 
                         self.__drawBorders(frame, x1, y1, w, h)
 
