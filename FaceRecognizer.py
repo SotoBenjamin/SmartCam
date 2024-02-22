@@ -42,21 +42,22 @@ class FaceRecognizer:
             r = requests.put(url_put, data=image_data, headers=headers_put)
             print(f"Estado de la respuesta de subida: {r.status_code}")
 
-        url_get = f"{Api_Url}/reo"
-        params = {'objectKey': f"{image_name}"}
+        if r.status_code == 200:
+            url_get = f"{Api_Url}/reo"
+            params = {'objectKey': f"{image_name}"}
 
-        headers_get = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-        }
+            headers_get = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            }
 
-        r2 = requests.get(url_get, headers=headers_get, params=params)
+            r2 = requests.get(url_get, headers=headers_get, params=params)
 
-        if r2.status_code == 200:
-            response_data = r2.json()
-            print(response_data)
-        else:
-            print(f"Estado de la respuesta de GET: {r2.status_code}")
+            if r2.status_code == 200:
+                response_data = r2.json()
+                print(response_data)
+            else:
+                print(f"Estado de la respuesta de GET: {r2.status_code}")
 
     def process_images(self):
         while True:
