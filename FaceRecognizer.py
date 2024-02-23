@@ -3,6 +3,7 @@ import face_recognition
 from multiprocessing import Queue, Process
 from datetime import datetime
 import cv2
+import time
 
 
 class FaceRecognizer:
@@ -27,7 +28,7 @@ class FaceRecognizer:
 
         return objectName
 
-    def sendImageToS3(self, image_path):
+    def sendImageToS3(self, image_path) -> None:
         Api_Url = 'https://v9buc4do9f.execute-api.us-east-1.amazonaws.com/dev'
         bucket = 'smart-cam-images'
         image_name = image_path[image_path.rfind("/") + 1:]
@@ -43,6 +44,7 @@ class FaceRecognizer:
             print(f"Estado de la respuesta de subida: {r.status_code}")
 
         if r.status_code == 200:
+            time.sleep(2)
             url_get = f"{Api_Url}/reo"
             params = {'objectKey': f"{image_name}"}
 

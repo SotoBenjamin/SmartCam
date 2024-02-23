@@ -155,6 +155,6 @@ class Camera:
 
 
 if __name__ == "__main__":
-    cam = Camera("config.json", False)
+    cam = Camera("config.json", True)
     cam.start()
     cam.stop()
